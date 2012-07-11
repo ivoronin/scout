@@ -6,6 +6,9 @@ scout: header.sh scout.sh
 	sed -e 's/@VERSION@/$(VERSION)/' scout.sh | bzip2 -9c >> $@
 	chmod +x $@
 
-.PHONY: clean
+.PHONY: clean dist
 clean:
-	rm -f scout
+	rm -f scout scout-$(VERSION).tbz
+
+dist: scout
+	fakeroot tar cjf scout-$(VERSION).tbz scout
