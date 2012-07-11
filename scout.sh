@@ -527,7 +527,7 @@ while getopts "hs:t:vV" OPTION; do
         "t") TAG=${OPTARG}      ;;
         "v") let VERBOSE+=1     ;; # evaluate as an arithmetic expression
         "V") scout_version      ;;
-        "?") usage 1            ;;
+        "?") scout_help 1       ;;
     esac
 done
 
