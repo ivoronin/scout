@@ -1,5 +1,7 @@
 #!/bin/bash
 
+VERSION="@VERSION@"
+
 if (( ${BASH_VERSINFO[0]} < 3 )); then
     echo "Bash version 3 or greater is required to run this program"
     exit 1
@@ -398,6 +400,11 @@ scout_help() {
     echo "scout [-s hostname] [-t tag] [-v]" ; exit ${1:-0}
 }
 
+scout_version() {
+    echo "${VERSION}"
+    exit 0
+}
+
 scout_exec() {
     [[ ${SSH_HOST} ]] && ssh -S "${SSH_CTL}" "${SSH_HOST}" $@ || $@
 }
@@ -456,6 +463,8 @@ scout_file() {
 scout_prep() {
     SCOUT_DIR=$(mktemp --directory)
 
+    echo "${VERSION}" > "${SCOUT_DIR}/version"
+
     # Start master SSH connection
     if [[ -n ${SSH_HOST} ]]; then
         scout_log "Starting master SSH connection to ${SSH_USER}@${SSH_HOST}:${SSH_PORT}"
@@ -511,12 +520,13 @@ VERBOSE=0
 
 SCOUT_DIR=
 
-while getopts "hs:t:v" OPTION; do
+while getopts "hs:t:vV" OPTION; do
     case "${OPTION}" in
         "h") scout_help         ;;
         "s") SSH_HOST=${OPTARG} ;;
         "t") TAG=${OPTARG}      ;;
         "v") let VERBOSE+=1     ;; # evaluate as an arithmetic expression
+        "V") scout_version      ;;
         "?") usage 1            ;;
     esac
 done
