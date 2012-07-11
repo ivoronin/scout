@@ -12,7 +12,7 @@ shopt -s extglob
 
 scout_recon() {
     if [[ "$(scout_exec uname 2>/dev/null)" != "Linux" ]]; then
-        scout_error "Unsupported OS"
+        scout_log "WARNING: Unsupported OS"
     fi
 
     case "$(scout_exec lsb_release -is 2>/dev/null)" in
@@ -442,8 +442,20 @@ scout_cmdo() {
     OUT="${SCOUT_DIR}/${SUBDIR}/${OUT}"
 
     # Run command
-    scout_log "Saving output of ${CMD}${ARGS:+ ${ARGS}}"
-    scout_exec ${CMD} ${ARGS} > "${OUT}.out" 2> "${OUT}.err" || echo -n "$?" > "${OUT}.rc"
+    scout_log -n "Saving output of ${CMD}${ARGS:+ ${ARGS}}: "
+    if scout_exec "${CMD}" ${ARGS} > "${OUT}.out" 2> "${OUT}.err"; then
+        scout_log -s "success"
+    else
+        E=$?
+        echo -n "$E" > "${OUT}.rc"
+        if (( $E < 126 )); then
+            scout_log -s "success"
+        elif (( $E == 127 )); then
+            scout_log -s "not found"
+        else
+            scout_log -s "failure"
+        fi
+    fi
 }
 
 scout_file() {
@@ -456,12 +468,21 @@ scout_file() {
     OUT="${SCOUT_DIR}/${SUBDIR}/${FILE##*/}" # Basename
 
     # Copy file/dir
-    scout_log "Saving file/dir ${FILE}"
-    scout_copy "${FILE}" "${OUT}" 2> /dev/null || true # Ignore errors
+    scout_log -n "Saving file/dir ${FILE}: "
+    if scout_test -e "${FILE}"; then
+        if scout_copy "${FILE}" "${OUT}" 2> /dev/null; then
+            scout_log -s "success"
+        else
+            scout_log -s "failure"
+        fi
+    else
+        scout_log -s "not found"
+    fi
 }
 
 scout_prep() {
     SCOUT_DIR=$(mktemp --directory)
+    SCOUT_LOG="${SCOUT_DIR}/scout.log"
 
     echo "${VERSION}" > "${SCOUT_DIR}/version"
 
@@ -482,11 +503,10 @@ scout_pack() {
     SHORTNAME=$(scout_exec hostname --short)
     DATE=$(scout_exec date +%m%d%y.%H%M%S)
     NAME="scout-${SHORTNAME}${TAG:+.${TAG}}.${DATE}"
-    scout_log "Packing collected data to ${NAME}.tbz"
     tar -c -j -C "$(dirname ${SCOUT_DIR})" -f "${NAME}.tbz" \
         --transform "s#$(basename ${SCOUT_DIR})#${NAME}#" "$(basename ${SCOUT_DIR})"
 
-    (( ${VERBOSE} )) && scout_log "Output saved in ${NAME}.tbz" || echo "${NAME}.tbz"
+    scout_log "Output is saved in ${NAME}.tbz"
 }
 
 scout_cleanup() {
@@ -498,15 +518,20 @@ scout_cleanup() {
     rm -rf "${SCOUT_DIR}"
 }
 
-scout_error() {
-    (( ${VERBOSE} )) && scout_log $@ || echo $@
-    exit 1
-}
-
 scout_log() {
-    MSG="$(date '+%m.%d.%y %H:%M:%S') $@"
-    (( ${VERBOSE} )) && echo "$MSG"
-    echo "${MSG}" >> "${SCOUT_DIR}/scout.log"
+    local OPTIND=0 N S OPTION OUT
+    while getopts "asn" OPTION; do
+        case "${OPTION}" in
+            "n") N="-n" ;;
+            "s") S=1 ;;
+        esac
+        shift
+    done
+
+    (( $S )) && MSG="$@" || MSG="$(date '+%m.%d.%y %H:%M:%S') $@"
+    (( ${VERBOSE} )) && OUT="/dev/stdout" || OUT="/dev/null"
+
+    echo $N "${MSG}" | tee -a "${SCOUT_LOG}" > "${OUT}"
 }
 
 # SSH
@@ -519,6 +544,7 @@ TAG=
 VERBOSE=0
 
 SCOUT_DIR=
+SCOUT_LOG=
 
 while getopts "hs:t:vV" OPTION; do
     case "${OPTION}" in
