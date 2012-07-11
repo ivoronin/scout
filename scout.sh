@@ -397,7 +397,7 @@ scout_recon() {
 }
 
 scout_help() {
-    echo "scout [-s hostname] [-t tag] [-v]" ; exit ${1:-0}
+    echo "scout [-V] [-s hostname] [-t tag] [-v]" ; exit ${1:-0}
 }
 
 scout_version() {
