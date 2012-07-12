@@ -11,6 +11,8 @@ set -e
 shopt -s extglob
 
 scout_recon() {
+    local DISTRO="UNKNOWN"
+
     if [[ "$(scout_exec uname 2>/dev/null)" != "Linux" ]]; then
         scout_log "WARNING: Unsupported OS"
     fi
@@ -24,9 +26,6 @@ scout_recon() {
         ;;
         "SUSE LINUX")
             DISTRO="SuSe"
-        ;;
-        *)
-            DISTRO="UNKNOWN"
         ;;
     esac
 
@@ -418,7 +417,7 @@ scout_find() {
 }
 
 scout_copy() {
-    SRC=$1; DST=$2
+    local SRC=$1 DST=$2
     if [[ ${SSH_HOST} ]]; then
         # scp fails to copy 0-sized files (/proc), so we need to use sftp
         # -b /dev/null is needed to switch sftp to batch mode to make it quiet
@@ -430,7 +429,7 @@ scout_copy() {
 }
 
 scout_cmdo() {
-    SUBDIR=$1; CMD=$2; ARGS=${@:3}
+    local SUBDIR=$1 CMD=$2 ARGS=${@:3}
 
     # Create subdir
     mkdir -p "${SCOUT_DIR}/${SUBDIR}"
@@ -459,7 +458,7 @@ scout_cmdo() {
 }
 
 scout_file() {
-    SUBDIR=$1; FILE=$2
+    local SUBDIR=$1 FILE=$2
 
     # Create subdir
     mkdir -p "${SCOUT_DIR}/${SUBDIR}"
