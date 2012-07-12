@@ -150,14 +150,15 @@ scout_recon() {
     scout_cmdo "devices" udevadm info --export-db   # new udev
 
     if scout_test -x /usr/bin/systool; then
-        for BUS in $(scout_find /sys/bus -maxdepth 1 -type d); do
-            scout_cmdo "devices/sysfs" systool -b "$(basename ${BUS})" -v
+        FINDEXPR="-maxdepth 1 -type d -printf %f\n"
+        for BUS in $(scout_find /sys/bus ${FINDEXPR}); do
+            scout_cmdo "devices/sysfs" systool -b "${BUS}" -v
         done
-        for CLASS in $(scout_find /sys/class -maxdepth 1 -type d); do
-            scout_cmdo "devices/sysfs" systool -c "$(basename ${CLASS})" -v
+        for CLASS in $(scout_find /sys/class ${FINDEXPR}); do
+            scout_cmdo "devices/sysfs" systool -c "${CLASS}" -v
         done
-        for MODULE in $(scout_find /sys/module -maxdepth 1 -type d); do
-            scout_cmdo "devices/sysfs" systool -m "$(basename ${MODULE})" -v
+        for MODULE in $(scout_find /sys/module ${FINDEXPR}); do
+            scout_cmdo "devices/sysfs" systool -m "${MODULE}" -v
         done
     else
         scout_log "Skipping systool: not installed"
