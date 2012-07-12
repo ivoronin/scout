@@ -163,7 +163,6 @@ scout_recon() {
     else
         scout_log "Skipping systool: not installed"
     fi
-    true
 
     #
     # Packages
