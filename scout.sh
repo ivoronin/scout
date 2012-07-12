@@ -318,17 +318,21 @@ scout_recon() {
     scout_file "disks/md" /etc/mdadm/mdadm.conf
 
     # LVM
-    scout_cmdo "disks/lvm" lvs -o lv_all
-    scout_cmdo "disks/lvm" lvdisplay -m --all
-    scout_cmdo "disks/lvm" pvs -o pv_all
-    scout_cmdo "disks/lvm" pvdisplay -m
-    scout_cmdo "disks/lvm" vgs -o vg_all
-    scout_cmdo "disks/lvm" vgdisplay -v
-    scout_cmdo "disks/lvm" lvm dumpconfig
-    scout_cmdo "disks/lvm" lvm formats
-    scout_cmdo "disks/lvm" lvm segtypes
-    scout_cmdo "disks/lvm" lvm version
-    scout_file "disks/lvm" /etc/lvm/lvm.conf
+    if scout_test -s /sbin/lvm; then
+        scout_cmdo "disks/lvm" lvs -o lv_all
+        scout_cmdo "disks/lvm" lvdisplay -m --all
+        scout_cmdo "disks/lvm" pvs -o pv_all
+        scout_cmdo "disks/lvm" pvdisplay -m
+        scout_cmdo "disks/lvm" vgs -o vg_all
+        scout_cmdo "disks/lvm" vgdisplay -v
+        scout_cmdo "disks/lvm" lvm dumpconfig
+        scout_cmdo "disks/lvm" lvm formats
+        scout_cmdo "disks/lvm" lvm segtypes
+        scout_cmdo "disks/lvm" lvm version
+        scout_file "disks/lvm" /etc/lvm/lvm.conf
+    else
+        scout_log "Skipping lvm: not installed"
+    fi
 
     # Multipath
     if scout_test -x /sbin/multipath; then
