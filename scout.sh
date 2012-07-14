@@ -17,6 +17,10 @@ scout_recon() {
         scout_log "WARNING: Unsupported OS"
     fi
 
+    if [[ "$(scout_exec whoami 2>/dev/null)" != "root" ]]; then
+        scout_log "WARNING: Running as non-root user"
+    fi
+
     case "$(scout_exec lsb_release -is 2>/dev/null)" in
         "RedHatEnterpriseServer" | "CentOS") 
             DISTRO="RedHat"
