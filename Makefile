@@ -1,7 +1,7 @@
 VERSION=$(shell git describe)
 
 all: scout
-scout: header.sh scout.sh
+scout: header.sh scout.sh .git/index
 	cat header.sh > $@
 	bash -n scout.sh
 	sed -e 's/@VERSION@/$(VERSION)/' scout.sh | bzip2 -9c >> $@
