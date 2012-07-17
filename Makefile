@@ -1,10 +1,9 @@
 VERSION=$(shell git describe)
 
 all: scout
-scout: header.sh scout.sh .git/index
-	cat header.sh > $@
+scout: scout.sh .git/index
 	bash -n scout.sh
-	sed -e 's/@VERSION@/$(VERSION)/' scout.sh | bzip2 -9c >> $@
+	sed -e 's/@VERSION@/$(VERSION)/' scout.sh > $@
 	chmod 755 $@
 
 .PHONY: clean dist
