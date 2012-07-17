@@ -212,7 +212,7 @@ scout_recon() {
     scout_cmdo "network" arp -an
 
     # ethtool
-    for IF in $(scout_exec ip -o link | awk -F': ' '{ print $2 }'); do
+    for IF in $(scout_exec ip -o link | awk -F': ' '{ print $2 }' 2>/dev/null); do
         scout_cmdo "network" ethtool "${IF}"
         scout_cmdo "network" ethtool -i "${IF}"
         scout_cmdo "network" ethtool -k "${IF}"
@@ -229,7 +229,7 @@ scout_recon() {
 
     # iptables
     if scout_test -f /proc/net/ip_tables_names; then
-        for TABLE in $(scout_exec cat /proc/net/ip_tables_names); do
+        for TABLE in $(scout_exec cat /proc/net/ip_tables_names 2>/dev/null); do
             scout_cmdo "network/iptables" iptables -t "${TABLE}" -Lnv --line-numbers
         done
     else
@@ -278,7 +278,7 @@ scout_recon() {
     scout_file "filesystems" /etc/exports
 
     # tune2fs
-    for FS in $(scout_exec mount | awk '{ if ( $5 ~ "^ext.$" ) { print $1 } }'); do
+    for FS in $(scout_exec mount | awk '{ if ( $5 ~ "^ext.$" ) { print $1 } }' 2>/dev/null); do
         scout_cmdo "filesystems" tune2fs -l "${FS}"
     done
 
