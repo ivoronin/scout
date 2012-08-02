@@ -242,6 +242,11 @@ scout_recon() {
     scout_cmdo "network" ip address
     scout_file "network" /etc/iproute2
 
+    # ss
+    scout_cmdo "network" ss -s
+    scout_cmdo "network" ss -an
+    scout_cmdo "network" ss -manpie
+
     # ntp
     scout_cmdo "network" ntpq -p
 
