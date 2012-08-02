@@ -507,7 +507,8 @@ scout_pack() {
     find "${SCOUT_DIR}" -type f -name "*.err" -size 0 -delete
 
     # Create TBZ
-    SHORTNAME=$(scout_exec hostname --short)
+    LONGNAME=$(scout_exec hostname)
+    SHORTNAME=${LONGNAME%%.*}
     DATE=$(scout_exec date +%m%d%y.%H%M%S)
     NAME="scout-${SHORTNAME}${TAG:+.${TAG}}.${DATE}"
     tar -c -j -C "$(dirname ${SCOUT_DIR})" -f "${NAME}.tbz" \
