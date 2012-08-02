@@ -404,7 +404,17 @@ scout_recon() {
 }
 
 scout_help() {
-    echo "scout [-V] [-s hostname] [-t tag] [-v]" ; exit ${1:-0}
+    echo "Usage: scout [OPTION...]"
+    echo ""
+    echo "  -r, --remote=HOSTNAME  collect data from remote machine HOSTNAME"
+    echo "  -t, --tag=tag          add a tag (for example case number)"
+    echo "  -v, --verbose          show what is being done"
+    echo "  -h, --help             give this help list"
+    echo "  -V, --version          print program version"
+    echo ""
+    echo "Mandatory arguments to long options are also mandatory for any"
+    echo "corresponding short options."
+    exit ${1:-0}
 }
 
 scout_version() {
@@ -558,15 +568,20 @@ VERBOSE=0
 SCOUT_DIR=
 SCOUT_LOG=
 
-while getopts "hs:t:vV" OPTION; do
-    case "${OPTION}" in
-        "h") scout_help         ;;
-        "s") SSH_HOST=${OPTARG} ;;
-        "t") TAG=${OPTARG}      ;;
-        "v") let VERBOSE+=1     ;; # evaluate as an arithmetic expression
-        "V") scout_version      ;;
-        "?") scout_help 1       ;;
+OPTIONS=$(getopt -n scout -o hr:t:vV -l help,remote:,tag:,verbose,version -- "$@") || exit 1
+eval set -- $OPTIONS
+
+while [ $# -gt 0 ]; do
+    case $1 in
+        "--") shift; break ;;
+        -h|--help) scout_help ;;
+        -r|--remote) SSH_HOST="$2"; shift ;;
+        -t|--tag) TAG="$2"; shift ;;
+        -v|--verbose) let VERBOSE+=1 ;; # evaluate as an arithmetic expression
+        -V|--version) scout_version  ;;
+        *) scout_help 1 ;;
     esac
+    shift
 done
 
 scout_prep
