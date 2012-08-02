@@ -153,7 +153,7 @@ scout_recon() {
     scout_cmdo "devices" udevadm info --export-db   # new udev
 
     if scout_test -x /usr/bin/systool; then
-        FINDEXPR="-maxdepth 1 -type d -printf %f\n"
+        FINDEXPR="-maxdepth 1 -type d -printf '%f '"
         for BUS in $(scout_find /sys/bus ${FINDEXPR}); do
             scout_cmdo "devices/sysfs" systool -b "${BUS}" -v
         done
