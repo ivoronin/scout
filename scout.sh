@@ -413,7 +413,11 @@ scout_version() {
 }
 
 scout_exec() {
-    [[ ${SSH_HOST} ]] && ssh -S "${SSH_CTL}" "${SSH_HOST}" $@ || $@
+    if [[ ${SSH_HOST} ]]; then
+        ssh -S "${SSH_CTL}" "${SSH_HOST}" $@
+    else
+        $@
+    fi
 }
 
 scout_test() {
