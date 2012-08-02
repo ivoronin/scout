@@ -525,8 +525,8 @@ scout_pack() {
     SHORTNAME=${LONGNAME%%.*}
     DATE=$(scout_exec date +%m%d%y.%H%M%S)
     NAME="scout-${SHORTNAME}${TAG:+.${TAG}}.${DATE}"
-    tar -c -j -C "$(dirname ${SCOUT_DIR})" -f "${NAME}.tbz" \
-        --transform "s#$(basename ${SCOUT_DIR})#${NAME}#" "$(basename ${SCOUT_DIR})"
+    tar -c -j -C "${SCOUT_DIR%/*}" -f "${NAME}.tbz" \
+        --transform "s#${SCOUT_DIR##*/})#${NAME}#" "${SCOUT_DIR##*/}"
 
     scout_log "Output is saved in ${NAME}.tbz"
 }
