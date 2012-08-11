@@ -1,23 +1,17 @@
-#!/bin/bash
+#!/bin/sh
+
+set -e
 
 VERSION="@VERSION@"
 
-if (( ${BASH_VERSINFO[0]} < 3 )); then
-    echo "Bash version 3 or greater is required to run this program"
-    exit 1
-fi
-
-set -e
-shopt -s extglob
-
 scout_recon() {
-    local DISTRO="UNKNOWN"
+    DISTRO="UNKNOWN"
 
-    if [[ "$(scout_exec uname 2>/dev/null)" != "Linux" ]]; then
+    if [ "$(scout_exec uname 2>/dev/null)" != "Linux" ]; then
         scout_log "WARNING: Unsupported OS"
     fi
 
-    if [[ "$(scout_exec whoami 2>/dev/null)" != "root" ]]; then
+    if [ "$(scout_exec whoami 2>/dev/null)" != "root" ]; then
         scout_log "WARNING: Running as non-root user"
     fi
 
@@ -121,7 +115,7 @@ scout_recon() {
     scout_file "kernel/grub" /boot/grub/menu.lst   # GRUB > 1.0
     scout_file "kernel/grub" /boot/grub/grub.cfg   # GRUB > 1.0
 
-    if [[ "${DISTRO}" == "RedHat" ]]; then
+    if [ "${DISTRO}" = "RedHat" ]; then
         scout_file "kernel/grub/efi" /boot/efi/EFI/redhat/grub.conf
     fi
     
@@ -430,7 +424,7 @@ scout_version() {
 }
 
 scout_exec() {
-    if [[ ${SSH_HOST} ]]; then
+    if [ -n "${SSH_HOST}" ]; then
         ssh -S "${SSH_CTL}" "${SSH_HOST}" $@
     else
         $@
@@ -446,8 +440,8 @@ scout_find() {
 }
 
 scout_copy() {
-    local SRC=$1 DST=$2
-    if [[ ${SSH_HOST} ]]; then
+    SRC=$1 DST=$2
+    if [ -n "${SSH_HOST}" ]; then
         # scp fails to copy 0-sized files (/proc), so we need to use sftp
         # -b /dev/null is needed to switch sftp to batch mode to make it quiet
         sftp -b /dev/null -p -r -q -o ControlMaster=no -o "ControlPath=${SSH_CTL}" \
@@ -458,15 +452,17 @@ scout_copy() {
 }
 
 scout_cmdo() {
-    local SUBDIR=$1 CMD=$2 ARGS=${@:3}
+    SUBDIR=$1 CMD=$2
+    shift 2
+    ARGS="$@"
 
     # Create subdir
     mkdir -p "${SCOUT_DIR}/${SUBDIR}"
 
     # Construct outut name
     OUT="${CMD##*/}${ARGS:+ ${ARGS}}"   # Basename
-    OUT="${OUT//[ \/]/_}"               # Remove spaces and slashes
-    OUT="${OUT//+(_)/_}"                # Remove duplicate underscores
+    # Remove spaces and slashes
+    OUT=$(echo "$OUT" | sed -re 's#([ /])+#_#g')
     OUT="${SCOUT_DIR}/${SUBDIR}/${OUT}"
 
     # Run command
@@ -476,9 +472,9 @@ scout_cmdo() {
     else
         E=$?
         echo -n "$E" > "${OUT}.rc"
-        if (( $E < 126 )); then
+        if [ "$E" -lt 126 ]; then
             scout_log -s "success"
-        elif (( $E == 127 )); then
+        elif [ "$E" -eq 127 ]; then
             scout_log -s "not found"
         else
             scout_log -s "failure"
@@ -487,7 +483,7 @@ scout_cmdo() {
 }
 
 scout_file() {
-    local SUBDIR=$1 FILE=$2
+    SUBDIR=$1 FILE=$2
 
     # Create subdir
     mkdir -p "${SCOUT_DIR}/${SUBDIR}"
@@ -515,7 +511,7 @@ scout_prep() {
     echo "${VERSION}" > "${SCOUT_DIR}/version"
 
     # Start master SSH connection
-    if [[ -n ${SSH_HOST} ]]; then
+    if [ -n "${SSH_HOST}" ]; then
         scout_log "Starting master SSH connection to ${SSH_USER}@${SSH_HOST}:${SSH_PORT}"
         SSH_CTL=$(mktemp --dry-run)
         ssh -N -f -M -S "${SSH_CTL}" -p "${SSH_PORT}" "${SSH_USER}@${SSH_HOST}"
@@ -541,14 +537,14 @@ scout_pack() {
 scout_cleanup() {
     # Stop master SSH connection
     # bugs.debian.org/563857
-    [[ ${SSH_HOST} ]] && ssh -S "${SSH_CTL}" -O exit -q "${SSH_HOST}" 2>/dev/null 
+    [ -n "${SSH_HOST}" ] && ssh -S "${SSH_CTL}" -O exit -q "${SSH_HOST}" 2>/dev/null 
 
     # Remove output directory
     rm -rf "${SCOUT_DIR}"
 }
 
 scout_log() {
-    local OPTIND=0 N S OPTION OUT
+    OPTIND=0 N="" S=0
     while getopts "asn" OPTION; do
         case "${OPTION}" in
             "n") N="-n" ;;
@@ -557,10 +553,13 @@ scout_log() {
         shift
     done
 
-    (( $S )) && MSG="$@" || MSG="$(date '+%m.%d.%y %H:%M:%S') $@"
-    (( ${VERBOSE} )) && OUT="/dev/stdout" || OUT="/dev/null"
+    [ "$S" -eq 1 ] && MSG="$@" || MSG="$(date '+%m.%d.%y %H:%M:%S') $@"
 
-    echo $N "${MSG}" | tee -a "${SCOUT_LOG}" > "${OUT}"
+    if [ "${VERBOSE}" -gt 0 ]; then
+        echo $N "${MSG}"
+    fi
+
+    echo $N "${MSG}" >> "${SCOUT_LOG}"
 }
 
 # SSH
@@ -584,7 +583,7 @@ while [ $# -gt 0 ]; do
         -h|--help) scout_help ;;
         -r|--remote) SSH_HOST="$2"; shift ;;
         -t|--tag) TAG="$2"; shift ;;
-        -v|--verbose) let VERBOSE+=1 ;; # evaluate as an arithmetic expression
+        -v|--verbose) VERBOSE=1 ;;
         -V|--version) scout_version  ;;
         *) scout_help 1 ;;
     esac
