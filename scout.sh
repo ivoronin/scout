@@ -345,7 +345,9 @@ scout_recon() {
 
     # Multipath
     if scout_test -x /sbin/multipath; then
-        scout_cmdo "disks" multipath -ll # -v4
+        scout_cmdo "disks" multipath -ll
+        scout_cmdo "disks" multipath -ll -v2
+        scout_file "disks" /etc/multipath/
         scout_file "disks" /etc/multipath.conf
     else
         scout_log "Skipping multipath: not installed"
