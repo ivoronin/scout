@@ -39,10 +39,18 @@ scout_recon() {
     scout_cmdo "system" who -b
     scout_cmdo "system" runlevel
 
+    #
     # processes
+    #
     scout_cmdo "system" ps alxwww
     scout_cmdo "system" pstree
     scout_cmdo "system" lsof -nb
+
+    for PIDDIR in $(scout_find /proc -maxdepth 1 -name "[0-9]*" -type d); do
+        PID=${PIDDIR##*/}
+        scout_file "proc/${PID}" "${PIDDIR}/status"
+        scout_file "proc/${PID}" "${PIDDIR}/smaps"
+    done
 
     case "${DISTRO}" in
         "RedHat")
@@ -98,8 +106,8 @@ scout_recon() {
     # Kernel
     #
     scout_cmdo "kernel" find /boot -ls
-    scout_file "kernel" /proc/cmdline
-    scout_file "kernel" /proc/version
+    scout_file "proc" /proc/cmdline
+    scout_file "proc" /proc/version
 
     # Modules
     scout_cmdo "kernel" lsmod
@@ -122,9 +130,9 @@ scout_recon() {
     #
     # Devices
     #
-    scout_file "devices" /proc/devices
-    scout_file "devices" /proc/ioports
-    scout_file "devices" /proc/interrupts
+    scout_file "proc" /proc/devices
+    scout_file "proc" /proc/ioports
+    scout_file "proc" /proc/interrupts
     scout_cmdo "devices" find /dev -ls
     scout_cmdo "devices" lspci
     scout_cmdo "devices" lspci -v
@@ -133,7 +141,7 @@ scout_recon() {
 
     # CPU
     scout_cmdo "devices" lscpu
-    scout_file "devices" /proc/cpuinfo
+    scout_file "proc" /proc/cpuinfo
 
     scout_cmdo "devices" dmidecode
     scout_cmdo "devices" biosdecode
@@ -218,7 +226,7 @@ scout_recon() {
     scout_cmdo "network" brctl show
 
     # Bonding
-    scout_file "network" /proc/net/bonding
+    scout_file "proc/net" /proc/net/bonding
     scout_cmdo "network" ifenslave -a
 
     # iptables
@@ -288,10 +296,10 @@ scout_recon() {
     scout_cmdo "memory" free
     scout_cmdo "memory" free -m
     scout_cmdo "memory" free -g
-    scout_file "memory" /proc/meminfo
-    scout_file "memory" /proc/slabinfo
-    scout_file "memory" /proc/buddyinfo
-    scout_file "memory" /proc/vmstat
+    scout_file "proc" /proc/meminfo
+    scout_file "proc" /proc/slabinfo
+    scout_file "proc" /proc/buddyinfo
+    scout_file "proc" /proc/vmstat
     
     #
     # Disks
@@ -303,8 +311,8 @@ scout_recon() {
     scout_cmdo "disks" blkid
 
     # /proc
-    scout_file "disks" /proc/scsi/scsi
-    scout_file "disks" /proc/partitions
+    scout_file "proc/scsi" /proc/scsi/scsi
+    scout_file "proc" /proc/partitions
 
     # lsblk
     if scout_test -x /bin/lsblk; then
@@ -317,7 +325,7 @@ scout_recon() {
     fi
 
     # MD
-    scout_file "disks/md" /proc/mdstat
+    scout_file "proc" /proc/mdstat
     scout_file "disks/md" /etc/mdadm/mdadm.conf
 
     # LVM
@@ -375,7 +383,7 @@ scout_recon() {
         scout_cmdo "xen" xm vcpu-list
         scout_cmdo "xen" xm log
         scout_file "xen" /etc/xen
-        scout_file "xen" /proc/xen
+        scout_file "proc" /proc/xen
     else
         scout_log "Skipping xen: not running"
     fi
