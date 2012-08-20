@@ -196,7 +196,7 @@ scout_recon() {
         "RedHat")
             scout_file "network" /etc/sysconfig/network
             ESNS="/etc/sysconfig/network-scripts"
-            scout_file "network" find ${ESNS} -ls
+            scout_cmdo "network" find ${ESNS} -ls
             for IFCFG in $(scout_find ${ESNS} -name "ifcfg-*" -maxdepth 1 -type f); do
                 scout_file "network/network-scripts" "${IFCFG}"
             done
