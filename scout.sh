@@ -8,11 +8,11 @@ scout_recon() {
     DISTRO="UNKNOWN"
 
     if [ "$(scout_exec uname 2>/dev/null)" != "Linux" ]; then
-        scout_log "WARNING: Unsupported OS"
+        scout_warn "Unsupported OS"
     fi
 
     if [ "$(scout_exec whoami 2>/dev/null)" != "root" ]; then
-        scout_log "WARNING: Running as non-root user"
+        scout_warn "Running as non-root user"
     fi
 
     case "$(scout_exec lsb_release -is 2>/dev/null)" in
@@ -25,11 +25,15 @@ scout_recon() {
         "SUSE LINUX")
             DISTRO="SuSe"
         ;;
+        *)
+            scout_warn "Unsupported Linux distro"
+        ;;
     esac
 
     #
     # System
     #
+    scout_info "system"
     scout_cmdo "system" hostname
     scout_cmdo "system" hostid
     scout_cmdo "system" lsb_release -a
@@ -38,19 +42,6 @@ scout_recon() {
     scout_cmdo "system" who -r
     scout_cmdo "system" who -b
     scout_cmdo "system" runlevel
-
-    #
-    # processes
-    #
-    scout_cmdo "system" ps alxwww
-    scout_cmdo "system" pstree
-    scout_cmdo "system" lsof -nb
-
-    for PIDDIR in $(scout_find /proc -maxdepth 1 -name "[0-9]*" -type d); do
-        PID=${PIDDIR##*/}
-        scout_file "proc/${PID}" "${PIDDIR}/status"
-        scout_file "proc/${PID}" "${PIDDIR}/smaps"
-    done
 
     case "${DISTRO}" in
         "RedHat")
@@ -105,6 +96,7 @@ scout_recon() {
     #
     # Kernel
     #
+    scout_info "kernel"
     scout_cmdo "kernel" find /boot -ls
     scout_file "proc" /proc/cmdline
     scout_file "proc" /proc/version
@@ -126,10 +118,70 @@ scout_recon() {
     if [ "${DISTRO}" = "RedHat" ]; then
         scout_file "kernel/grub/efi" /boot/efi/EFI/redhat/grub.conf
     fi
+
+    #
+    # Packages
+    #
+    scout_info "packages"
+    case "${DISTRO}" in
+        "RedHat")
+            scout_cmdo "packages" rpm -qa
+            scout_file "packages" /etc/yum.conf
+            scout_file "packages" /etc/yum
+            scout_file "packages" /etc/yum.repos.d
+        ;;
+        "Debian")
+            scout_cmdo "packages" dpkg -l
+            scout_file "packages" /etc/apt
+        ;;
+        "SuSe")
+            # TODO: Add YaST
+            scout_cmdo "packages" rpm -qa
+        ;;
+    esac
+
+    #
+    # Services
+    #
+    scout_info "services"
+    case "${DISTRO}" in
+        "RedHat") scout_cmdo "services" chkconfig --list
+                  scout_file "services" /etc/inittab ;;
+        "Debian") scout_cmdo "services" service --status-all ;;
+    esac
+
     
+    #
+    # processes
+    #
+    scout_info "processes"
+    scout_cmdo "system" ps alxwww
+    scout_cmdo "system" pstree
+    scout_cmdo "system" lsof -nb
+
+    for PIDDIR in $(scout_find /proc -maxdepth 1 -name "[0-9]*" -type d); do
+        PID=${PIDDIR##*/}
+        scout_file "proc/${PID}" "${PIDDIR}/status"
+        scout_file "proc/${PID}" "${PIDDIR}/smaps"
+    done
+
+    #
+    # Memory
+    #
+    scout_info "memory"
+    scout_cmdo "memory" swapon -s
+    scout_cmdo "memory" free
+    scout_cmdo "memory" free -m
+    scout_cmdo "memory" free -g
+    scout_file "proc" /proc/meminfo
+    scout_file "proc" /proc/slabinfo
+    scout_file "proc" /proc/buddyinfo
+    scout_file "proc" /proc/vmstat
+
     #
     # Devices
     #
+    scout_info "hardware"
     scout_file "proc" /proc/devices
     scout_file "proc" /proc/ioports
     scout_file "proc" /proc/interrupts
@@ -143,6 +195,7 @@ scout_recon() {
     scout_cmdo "devices" lscpu
     scout_file "proc" /proc/cpuinfo
 
+    # DMI/SMBIOS
     scout_cmdo "devices" dmidecode
     scout_cmdo "devices" biosdecode
     scout_cmdo "devices" vpddecode
@@ -165,38 +218,91 @@ scout_recon() {
         for MODULE in $(scout_find /sys/module ${FINDEXPR}); do
             scout_cmdo "devices/sysfs" systool -m "${MODULE##*/}" -v
         done
-    else
-        scout_log "Skipping systool: not installed"
     fi
 
     #
-    # Packages
+    # Disks
     #
-    case "${DISTRO}" in
-        "RedHat")
-            scout_cmdo "packages" rpm -qa
-            scout_file "packages" /etc/yum.conf
-            scout_file "packages" /etc/yum
-            scout_file "packages" /etc/yum.repos.d
-        ;;
-        "Debian")
-            scout_cmdo "packages" dpkg -l
-            scout_file "packages" /etc/apt
-        ;;
-        "SuSe")
-            # TODO: Add YaST
-            scout_cmdo "packages" rpm -qa
-        ;;
-    esac
+    scout_info "storage"
+    scout_cmdo "disks" fdisk -l  # Units: cylinders
+    scout_cmdo "disks" fdisk -lu # Units: sectors
+    scout_cmdo "disks" parted -l
+    scout_cmdo "disks" raw -qa
+    scout_cmdo "disks" blkid
+
+    # /proc
+    scout_file "proc/scsi" /proc/scsi/scsi
+    scout_file "proc" /proc/partitions
+
+    # lsblk
+    if scout_test -x /bin/lsblk; then
+        scout_cmdo "disks" lsblk -a
+        scout_cmdo "disks" lsblk -ab
+        scout_cmdo "disks" lsblk -at
+        scout_cmdo "disks" lsblk -am
+    fi
+
+    # MD
+    scout_file "proc" /proc/mdstat
+    scout_file "disks/md" /etc/mdadm/mdadm.conf
+
+    # LVM
+    if scout_test -s /sbin/lvm; then
+        scout_cmdo "disks/lvm" lvs -o lv_all
+        scout_cmdo "disks/lvm" lvdisplay -m --all
+        scout_cmdo "disks/lvm" pvs -o pv_all
+        scout_cmdo "disks/lvm" pvdisplay -m
+        scout_cmdo "disks/lvm" vgs -o vg_all
+        scout_cmdo "disks/lvm" vgdisplay -v
+        scout_cmdo "disks/lvm" lvm dumpconfig
+        scout_cmdo "disks/lvm" lvm formats
+        scout_cmdo "disks/lvm" lvm segtypes
+        scout_cmdo "disks/lvm" lvm version
+        scout_file "disks/lvm" /etc/lvm/lvm.conf
+    fi
+
+    # Multipath
+    if scout_test -x /sbin/multipath; then
+        scout_cmdo "disks" multipath -ll
+        scout_cmdo "disks" multipath -ll -v2
+        scout_file "disks" /etc/multipath/
+        scout_file "disks" /etc/multipath.conf
+    fi
+
+    # Device mapper
+    scout_cmdo "disks/dm" dmsetup table
+    scout_cmdo "disks/dm" dmsetup info
+    scout_cmdo "disks/dm" dmsetup deps
+    scout_cmdo "disks/dm" dmsetup targets
+    scout_cmdo "disks/dm" dmsetup version
+    scout_cmdo "disks/dm" dmsetup ls --tree
+
+    #
+    # Filesystems
+    #
+    scout_info "filesystems"
+    scout_cmdo "filesystems" df -h
+    scout_cmdo "filesystems" df -i
+    scout_cmdo "filesystems" mount
+    scout_cmdo "filesystems" findmnt
+    scout_file "filesystems" /etc/fstab
+    scout_file "filesystems" /etc/fstab.d
+    scout_file "filesystems" /etc/exports
+
+    # tune2fs
+    for FS in $(scout_exec mount | awk '{ if ( $5 ~ "^ext.$" ) { print $1 } }' 2>/dev/null); do
+        scout_cmdo "filesystems" tune2fs -l "${FS}"
+    done
 
     #
     # Networking
     #
+    scout_info "network"
     case "${DISTRO}" in
         "RedHat")
             scout_file "network" /etc/sysconfig/network
             ESNS="/etc/sysconfig/network-scripts"
-            scout_cmdo "network" find ${ESNS} -ls
+            scout_file "network" find ${ESNS} -ls
             for IFCFG in $(scout_find ${ESNS} -name "ifcfg-*" -maxdepth 1 -type f); do
                 scout_file "network/network-scripts" "${IFCFG}"
             done
@@ -234,8 +340,6 @@ scout_recon() {
         for TABLE in $(scout_exec cat /proc/net/ip_tables_names 2>/dev/null); do
             scout_cmdo "network/iptables" iptables -t "${TABLE}" -Lnv --line-numbers
         done
-    else
-        scout_log "Skipping iptables: not enabled"
     fi
 
     # iproute2
@@ -274,108 +378,10 @@ scout_recon() {
     scout_file "network" /etc/xinetd.d
 
     #
-    # Filesystems
-    #
-    scout_cmdo "filesystems" df -h
-    scout_cmdo "filesystems" df -i
-    scout_cmdo "filesystems" mount
-    scout_cmdo "filesystems" findmnt
-    scout_file "filesystems" /etc/fstab
-    scout_file "filesystems" /etc/fstab.d
-    scout_file "filesystems" /etc/exports
-
-    # tune2fs
-    for FS in $(scout_exec mount | awk '{ if ( $5 ~ "^ext.$" ) { print $1 } }' 2>/dev/null); do
-        scout_cmdo "filesystems" tune2fs -l "${FS}"
-    done
-
-    #
-    # Memory
-    #
-    scout_cmdo "memory" swapon -s
-    scout_cmdo "memory" free
-    scout_cmdo "memory" free -m
-    scout_cmdo "memory" free -g
-    scout_file "proc" /proc/meminfo
-    scout_file "proc" /proc/slabinfo
-    scout_file "proc" /proc/buddyinfo
-    scout_file "proc" /proc/vmstat
-    
-    #
-    # Disks
-    #
-    scout_cmdo "disks" fdisk -l  # Units: cylinders
-    scout_cmdo "disks" fdisk -lu # Units: sectors
-    scout_cmdo "disks" parted -l
-    scout_cmdo "disks" raw -qa
-    scout_cmdo "disks" blkid
-
-    # /proc
-    scout_file "proc/scsi" /proc/scsi/scsi
-    scout_file "proc" /proc/partitions
-
-    # lsblk
-    if scout_test -x /bin/lsblk; then
-        scout_cmdo "disks" lsblk -a
-        scout_cmdo "disks" lsblk -ab
-        scout_cmdo "disks" lsblk -at
-        scout_cmdo "disks" lsblk -am
-    else
-        scout_log "Skipping lsblk: not installed"
-    fi
-
-    # MD
-    scout_file "proc" /proc/mdstat
-    scout_file "disks/md" /etc/mdadm/mdadm.conf
-
-    # LVM
-    if scout_test -s /sbin/lvm; then
-        scout_cmdo "disks/lvm" lvs -o lv_all
-        scout_cmdo "disks/lvm" lvdisplay -m --all
-        scout_cmdo "disks/lvm" pvs -o pv_all
-        scout_cmdo "disks/lvm" pvdisplay -m
-        scout_cmdo "disks/lvm" vgs -o vg_all
-        scout_cmdo "disks/lvm" vgdisplay -v
-        scout_cmdo "disks/lvm" lvm dumpconfig
-        scout_cmdo "disks/lvm" lvm formats
-        scout_cmdo "disks/lvm" lvm segtypes
-        scout_cmdo "disks/lvm" lvm version
-        scout_file "disks/lvm" /etc/lvm/lvm.conf
-    else
-        scout_log "Skipping lvm: not installed"
-    fi
-
-    # Multipath
-    if scout_test -x /sbin/multipath; then
-        scout_cmdo "disks" multipath -ll
-        scout_cmdo "disks" multipath -ll -v2
-        scout_file "disks" /etc/multipath/
-        scout_file "disks" /etc/multipath.conf
-    else
-        scout_log "Skipping multipath: not installed"
-    fi
-
-    # Device mapper
-    scout_cmdo "disks/dm" dmsetup table
-    scout_cmdo "disks/dm" dmsetup info
-    scout_cmdo "disks/dm" dmsetup deps
-    scout_cmdo "disks/dm" dmsetup targets
-    scout_cmdo "disks/dm" dmsetup version
-    scout_cmdo "disks/dm" dmsetup ls --tree
-
-    #
-    # Services
-    #
-    case "${DISTRO}" in
-        "RedHat") scout_cmdo "services" chkconfig --list
-                  scout_file "services" /etc/inittab ;;
-        "Debian") scout_cmdo "services" service --status-all ;;
-    esac
-
-    #
     # XEN
     #
     if scout_test -d /proc/xen; then
+        scout_info "xen"
         scout_cmdo "xen" xm info
         scout_cmdo "xen" xm dmesg
         scout_cmdo "xen" xm list
@@ -384,18 +390,12 @@ scout_recon() {
         scout_cmdo "xen" xm log
         scout_file "xen" /etc/xen
         scout_file "proc" /proc/xen
-    else
-        scout_log "Skipping xen: not running"
     fi
-
-    #
-    # KVM
-    #
-    scout_cmdo "kvm" kvm_stat --once
 
     #
     # Logs
     #
+    scout_info "logs"
     scout_cmdo "system" dmesg
 
     # logrotate
@@ -474,18 +474,18 @@ scout_cmdo() {
     OUT="${SCOUT_DIR}/${SUBDIR}/${OUT}"
 
     # Run command
-    scout_log -n "Saving output of ${CMD}${ARGS:+ ${ARGS}}: "
+    scout_log -vn "Saving output of ${CMD}${ARGS:+ ${ARGS}}: "
     if scout_exec "${CMD}" ${ARGS} > "${OUT}.out" 2> "${OUT}.err"; then
-        scout_log -s "success"
+        scout_log -vs "success"
     else
         E=$?
         echo -n "$E" > "${OUT}.rc"
         if [ "$E" -lt 126 ]; then
-            scout_log -s "success"
+            scout_log -vs "success"
         elif [ "$E" -eq 127 ]; then
-            scout_log -s "not found"
+            scout_log -vs "not found"
         else
-            scout_log -s "failure"
+            scout_log -vs "failure"
         fi
     fi
 }
@@ -500,15 +500,15 @@ scout_file() {
     OUT="${SCOUT_DIR}/${SUBDIR}/${FILE##*/}" # Basename
 
     # Copy file/dir
-    scout_log -n "Saving file/dir ${FILE}: "
+    scout_log -vn "Saving file/dir ${FILE}: "
     if scout_test -e "${FILE}"; then
         if scout_copy "${FILE}" "${OUT}" 2> /dev/null; then
-            scout_log -s "success"
+            scout_log -vs "success"
         else
-            scout_log -s "failure"
+            scout_log -vs "failure"
         fi
     else
-        scout_log -s "not found"
+        scout_log -vs "not found"
     fi
 }
 
@@ -520,7 +520,7 @@ scout_prep() {
 
     # Start master SSH connection
     if [ -n "${SSH_HOST}" ]; then
-        scout_log "Starting master SSH connection to ${SSH_USER}@${SSH_HOST}:${SSH_PORT}"
+        scout_log -v "Starting master SSH connection to ${SSH_USER}@${SSH_HOST}:${SSH_PORT}"
         SSH_CTL=$(mktemp --dry-run)
         ssh -N -f -M -S "${SSH_CTL}" -p "${SSH_PORT}" "${SSH_USER}@${SSH_HOST}"
     fi
@@ -528,7 +528,6 @@ scout_prep() {
 
 scout_pack() {
     # Delete empty .err files
-    scout_log "Cleaning up output directory"
     find "${SCOUT_DIR}" -type f -name "*.err" -size 0 -delete
 
     # Create TBZ
@@ -539,7 +538,7 @@ scout_pack() {
     tar -c -j -C "${SCOUT_DIR%/*}" -f "${NAME}.tbz" \
         --transform "s#${SCOUT_DIR##*/}#${NAME}#" "${SCOUT_DIR##*/}"
 
-    scout_log "Output is saved in ${NAME}.tbz"
+    scout_log "DONE: ${NAME}.tbz"
 }
 
 scout_cleanup() {
@@ -551,23 +550,32 @@ scout_cleanup() {
     rm -rf "${SCOUT_DIR}"
 }
 
+scout_warn() {
+    scout_log "WARNING: $*"
+}
+
+scout_info() {
+    scout_log "RUNNING: $*"
+}
+
 scout_log() {
-    OPTIND=0 N="" S=0
-    while getopts "asn" OPTION; do
+    OPTIND=0 N="" S=0 V=0
+    while getopts "snv" OPTION; do
         case "${OPTION}" in
             "n") N="-n" ;;
             "s") S=1 ;;
+            "v") V=1 ;;
         esac
-        shift
+        shift $(($OPTIND-1))
     done
 
     [ "$S" -eq 1 ] && MSG="$@" || MSG="$(date '+%m.%d.%y %H:%M:%S') $@"
 
-    if [ "${VERBOSE}" -gt 0 ]; then
-        echo $N "${MSG}"
+    if [ "${VERBOSE}" -eq 0 ] && [ "${V}" -eq 1 ]; then
+        echo $N "${MSG}" >> "${SCOUT_LOG}"
+    else
+        echo $N "${MSG}" | tee -a "${SCOUT_LOG}"
     fi
-
-    echo $N "${MSG}" >> "${SCOUT_LOG}"
 }
 
 # SSH
