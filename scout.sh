@@ -571,11 +571,14 @@ scout_log() {
 
     [ "$S" -eq 1 ] && MSG="$@" || MSG="$(date '+%m.%d.%y %H:%M:%S') $@"
 
-    if [ "${VERBOSE}" -eq 0 ] && [ "${V}" -eq 1 ]; then
-        echo $N "${MSG}" >> "${SCOUT_LOG}"
+    if [ "${V}" -eq 1 ]; then
+        if [ "${VERBOSE}" -eq 1 ]; then
+            echo $N "${MSG}"
+        fi
     else
-        echo $N "${MSG}" | tee -a "${SCOUT_LOG}"
+        echo $N "${MSG}"
     fi
+    echo $N "${MSG}" >> "${SCOUT_LOG}"
 }
 
 # SSH
