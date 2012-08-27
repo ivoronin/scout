@@ -248,17 +248,19 @@ scout_recon() {
 
     # LVM
     if scout_test -s /sbin/lvm; then
-        scout_cmdo "disks/lvm" lvs -o lv_all
+        scout_cmdo "disks/lvm" lvs
+        scout_cmdo "disks/lvm" lvs -a
         scout_cmdo "disks/lvm" lvdisplay -m --all
-        scout_cmdo "disks/lvm" pvs -o pv_all
+        scout_cmdo "disks/lvm" pvs
+        scout_cmdo "disks/lvm" pvs -a
         scout_cmdo "disks/lvm" pvdisplay -m
-        scout_cmdo "disks/lvm" vgs -o vg_all
+        scout_cmdo "disks/lvm" vgs
         scout_cmdo "disks/lvm" vgdisplay -v
         scout_cmdo "disks/lvm" lvm dumpconfig
         scout_cmdo "disks/lvm" lvm formats
         scout_cmdo "disks/lvm" lvm segtypes
         scout_cmdo "disks/lvm" lvm version
-        scout_file "disks/lvm" /etc/lvm/lvm.conf
+        scout_file "disks/lvm" /etc/lvm/
     fi
 
     # Multipath
