@@ -515,7 +515,7 @@ scout_file() {
 }
 
 scout_prep() {
-    SCOUT_DIR=$(mktemp --directory)
+    SCOUT_DIR=$(mktemp -d)
     SCOUT_LOG="${SCOUT_DIR}/scout.log"
 
     echo "${VERSION}" > "${SCOUT_DIR}/version"
