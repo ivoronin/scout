@@ -467,13 +467,13 @@ scout_cmdo() {
     ARGS="$@"
 
     # Create subdir
-    mkdir -p "${SCOUT_DIR}/${SUBDIR}"
+    mkdir -p "${SCOUT_TMP}/${SCOUT_DIR}/${SUBDIR}"
 
     # Construct outut name
     OUT="${CMD##*/}${ARGS:+ ${ARGS}}"   # Basename
     # Remove spaces and slashes
     OUT=$(echo "$OUT" | sed -re 's#([ /])+#_#g')
-    OUT="${SCOUT_DIR}/${SUBDIR}/${OUT}"
+    OUT="${SCOUT_TMP}/${SCOUT_DIR}/${SUBDIR}/${OUT}"
 
     # Run command
     scout_log -vn "Saving output of ${CMD}${ARGS:+ ${ARGS}}: "
@@ -496,10 +496,10 @@ scout_file() {
     SUBDIR=$1 FILE=$2
 
     # Create subdir
-    mkdir -p "${SCOUT_DIR}/${SUBDIR}"
+    mkdir -p "${SCOUT_TMP}/${SCOUT_DIR}/${SUBDIR}"
 
     # Construct outut name
-    OUT="${SCOUT_DIR}/${SUBDIR}/${FILE##*/}" # Basename
+    OUT="${SCOUT_TMP}/${SCOUT_DIR}/${SUBDIR}/${FILE##*/}" # Basename
 
     # Copy file/dir
     scout_log -vn "Saving file/dir ${FILE}: "
@@ -515,32 +515,32 @@ scout_file() {
 }
 
 scout_prep() {
-    SCOUT_DIR=$(mktemp -d)
-    SCOUT_LOG="${SCOUT_DIR}/scout.log"
-
-    echo "${VERSION}" > "${SCOUT_DIR}/version"
-
     # Start master SSH connection
     if [ -n "${SSH_HOST}" ]; then
-        scout_log -v "Starting master SSH connection to ${SSH_USER}@${SSH_HOST}:${SSH_PORT}"
         SSH_CTL=$(mktemp --dry-run)
         ssh -N -f -M -S "${SSH_CTL}" -p "${SSH_PORT}" "${SSH_USER}@${SSH_HOST}"
     fi
+
+    SCOUT_TMP="$(mktemp -d)"
+    LONGNAME="$(scout_exec hostname)"
+    SHORTNAME="${LONGNAME%%.*}"
+    DATE="$(scout_exec date +%m%d%y.%H%M%S.%Z)"
+    SCOUT_DIR="scout-${SHORTNAME}${TAG:+.${TAG}}.${DATE}"
+    mkdir "${SCOUT_TMP}/${SCOUT_DIR}"
+    SCOUT_LOG="${SCOUT_TMP}/${SCOUT_DIR}/scout.log"
+
+    [ -n "${SSH_HOST}" ] && scout_log -v "Starting master SSH connection to ${SSH_USER}@${SSH_HOST}:${SSH_PORT}"
+    echo "${VERSION}" > "${SCOUT_TMP}/${SCOUT_DIR}/version"
 }
 
 scout_pack() {
     # Delete empty .err files
-    find "${SCOUT_DIR}" -type f -name "*.err" -size 0 -delete
+    find "${SCOUT_TMP}/${SCOUT_DIR}" -type f -name "*.err" -size 0 -delete
 
     # Create TBZ
-    LONGNAME=$(scout_exec hostname)
-    SHORTNAME=${LONGNAME%%.*}
-    DATE=$(scout_exec date +%m%d%y.%H%M%S)
-    NAME="scout-${SHORTNAME}${TAG:+.${TAG}}.${DATE}"
-    tar -c -j -C "${SCOUT_DIR%/*}" -f "${NAME}.tbz" \
-        --transform "s#${SCOUT_DIR##*/}#${NAME}#" "${SCOUT_DIR##*/}"
+    tar -c -j -C "${SCOUT_TMP}" -f "${SCOUT_DIR}.tbz" "${SCOUT_DIR}"
 
-    scout_log "DONE: ${NAME}.tbz"
+    scout_log "DONE: ${SCOUT_DIR}.tbz"
 }
 
 scout_cleanup() {
@@ -549,7 +549,7 @@ scout_cleanup() {
     [ -n "${SSH_HOST}" ] && ssh -S "${SSH_CTL}" -O exit -q "${SSH_HOST}" 2>/dev/null 
 
     # Remove output directory
-    rm -rf "${SCOUT_DIR}"
+    rm -rf "${SCOUT_TMP}"
 }
 
 scout_warn() {
@@ -592,6 +592,7 @@ SSH_CTL=
 TAG=
 VERBOSE=0
 
+SCOUT_TMP=
 SCOUT_DIR=
 SCOUT_LOG=
 
