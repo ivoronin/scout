@@ -380,17 +380,19 @@ scout_recon() {
     scout_file "network" /etc/xinetd.d
 
     #
-    # XEN
+    # Virtualization
     #
+    scout_info "virtualization"
+
+    # XEN
     if scout_test -d /proc/xen; then
-        scout_info "xen"
-        scout_cmdo "xen" xm info
-        scout_cmdo "xen" xm dmesg
-        scout_cmdo "xen" xm list
-        scout_cmdo "xen" xm list --long
-        scout_cmdo "xen" xm vcpu-list
-        scout_cmdo "xen" xm log
-        scout_file "xen" /etc/xen
+        scout_cmdo "virt/xen" xm info
+        scout_cmdo "virt/xen" xm dmesg
+        scout_cmdo "virt/xen" xm list
+        scout_cmdo "virt/xen" xm list --long
+        scout_cmdo "virt/xen" xm vcpu-list
+        scout_cmdo "virt/xen" xm log
+        scout_file "virt/xen" /etc/xen
         scout_file "proc" /proc/xen
     fi
 
