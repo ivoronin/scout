@@ -1,5 +1,5 @@
-Scout - Linux diagnostic data collection tool
-=============================================
+Scout - Linux diagnostic data collection toolkit
+================================================
 
-Scout is a tool to get linux system runtime diagnostic information useful for
-technical support. It is inspired by (sun) explorer data collector for solaris.
+Scout is a collection of tools to get linux system runtime diagnostic
+information useful for technical support.
