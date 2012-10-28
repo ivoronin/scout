@@ -92,7 +92,7 @@ for HOST in /sys/class/fc_host/host*; do
                         "8")
                             # Changer
                             DEVICE_NAME=$(ls -d ${DEVICE}/device/scsi_generic:sg* | \
-                                        sed -ne 's#.*\(sg[0-9]\+\)$#\1#p')
+                                        sed -ne 's#.*:\(sg[0-9]\+\)$#\1#p')
                         ;;
                     esac
                     printf "${DEVICE_FORMAT}" "${HOST_NUM}" "${RPORT_NUM}" "${DEVICE_NUM}" \
